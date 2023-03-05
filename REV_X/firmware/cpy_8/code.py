@@ -28,12 +28,13 @@ import adafruit_requests as requests
 from adafruit_io.adafruit_io import IO_HTTP, AdafruitIO_RequestError
 from digitalio import DigitalInOut
 
+# Settings
+
 displayio.release_displays()
 
 def reset_on_error(delay, error):
     """Resets the code after a specified delay, when encountering an error."""
     print("Error:\n", str(error))
-    display.print("Error :(")
     print("Resetting microcontroller in %d seconds" % delay)
     time.sleep(delay)
     microcontroller.reset()
@@ -182,12 +183,17 @@ print("")
 ###
 # Main loop
 ###
+# init data array
+data = []
+counter = 0
 while True:
     try:
         if scd.data_available:
+            counter += 1
             co2 = scd.CO2
             temp = scd.temperature
             humidity = scd.relative_humidity
+            data.append([co2, temp, humidity])
             co2_str = "CO2: %d PPM" % (co2)
             temp_str = "Temp: " + str(temp) + " C"
             humidity_str = "Humidity: " + str(humidity) + " %rH"
@@ -209,15 +215,23 @@ while True:
             # turn the display auto_refresh back on
             display.auto_refresh = True
 
-            # Send co2 values to the feed
-            print("Sending {0} to co2 feed...".format(co2))
-            io.send_data(co2_feed["key"], co2)
-            io.send_data(temp_feed["key"], temp)
-            io.send_data(humidity_feed["key"], humidity)
-            print("Data sent!")
+            if counter > 15: 
+                # Average data
+                for sensor in data:
+                    #mean(sensor)
+                    print(sensor)
+                data = [] # reinit data
+                # Send co2 values to the feed
+                print("Sending {0} to co2 feed...".format(co2))
+                io.send_data(co2_feed["key"], co2)
+                io.send_data(temp_feed["key"], temp)
+                io.send_data(humidity_feed["key"], humidity)
+                print("Data sent!")
+                counter = 0
 
-        time.sleep(10)
+        time.sleep(1)
     # any errors, reset MCU
     except Exception as e:  # pylint: disable=broad-except
-        reset_on_error(10, e)
+        #reset_on_error(10, e)
+        print("Error!" + e)
 
