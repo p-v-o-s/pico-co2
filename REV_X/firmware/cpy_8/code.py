@@ -47,48 +47,6 @@ rtc = adafruit_pcf8523.PCF8523(i2c)
 display_bus = displayio.I2CDisplay(i2c, device_address=0x3C)
 display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 
-# connect to WIFI
-try:
-    wifi.radio.connect(os.getenv('WIFI_SSID'), os.getenv('WIFI_PASSWORD'))
-# any errors, reset MCU after 10s
-except Exception as e:  # pylint: disable=broad-except
-    reset_on_error(10, e)
-
-# create pool and requests session
-pool = socketpool.SocketPool(wifi.radio)
-requests = requests.Session(pool, ssl.create_default_context())
-
-# ntp
-ntp = adafruit_ntp.NTP(pool, tz_offset=0)
-
-# Initialize an Adafruit IO HTTP API object
-try:
-    io = IO_HTTP(os.getenv('AIO_USERNAME'), os.getenv('AIO_KEY'), requests)
-except Exception as e:  # pylint: disable=broad-except
-    reset_on_error(10, e)
-print("Connected to Adafruit IO")
-
-try:
-    # Get the 'co2' feed from Adafruit IO
-    co2_feed = io.get_feed("co2-pico")
-except AdafruitIO_RequestError:
-    # If no 'co2' feed exists, create one
-    co2_feed = io.create_new_feed("co2-pico")
-
-try:
-    # Get the 'temperature' feed from Adafruit IO
-    temp_feed = io.get_feed("temperature-pico")
-except AdafruitIO_RequestError:
-    # If no 'temperature' feed exists, create one
-    temp_feed = io.create_new_feed("temperature-pico")
-
-try:
-    # Get the 'humidity' feed from Adafruit IO
-    humidity_feed = io.get_feed("humidity-pico")
-except AdafruitIO_RequestError:
-    # If no 'humidity' feed exists, create one
-    humidity_feed = io.create_new_feed("humidity-pico")
-
 
 ## Splash screen
 
@@ -119,6 +77,56 @@ time.sleep(1)
 
 # reset the display to show nothing.
 display.show(None)
+
+# connect to WIFI
+print("Connecting to wifi")
+try:
+    wifi.radio.connect(os.getenv('WIFI_SSID'), os.getenv('WIFI_PASSWORD'))
+# any errors, reset MCU after 10s
+except Exception as e:  # pylint: disable=broad-except
+    reset_on_error(10, e)
+print("Wifi: connected")
+
+# create pool and requests session
+pool = socketpool.SocketPool(wifi.radio)
+requests = requests.Session(pool, ssl.create_default_context())
+
+# timekeeping
+rtc = adafruit_pcf8523.PCF8523(i2c)
+ntp = adafruit_ntp.NTP(pool, tz_offset=os.getenv('TZ_OFFSET'))
+rtc.datetime = ntp.datetime
+t = rtc.datetime
+print("Date: %d/%d/%d" % (t.tm_mday, t.tm_mon, t.tm_year))
+print("Time: %d:%02d:%02d" % (t.tm_hour, t.tm_min, t.tm_sec))
+
+# Initialize an Adafruit IO HTTP API object
+print("Connecting to AdafruitIO")
+try:
+    io = IO_HTTP(os.getenv('AIO_USERNAME'), os.getenv('AIO_KEY'), requests)
+except Exception as e:  # pylint: disable=broad-except
+    reset_on_error(10, e)
+print("Connected to Adafruit IO")
+
+try:
+    # Get the 'co2' feed from Adafruit IO
+    co2_feed = io.get_feed("co2-pico")
+except AdafruitIO_RequestError:
+    # If no 'co2' feed exists, create one
+    co2_feed = io.create_new_feed("co2-pico")
+
+try:
+    # Get the 'temperature' feed from Adafruit IO
+    temp_feed = io.get_feed("temperature-pico")
+except AdafruitIO_RequestError:
+    # If no 'temperature' feed exists, create one
+    temp_feed = io.create_new_feed("temperature-pico")
+
+try:
+    # Get the 'humidity' feed from Adafruit IO
+    humidity_feed = io.get_feed("humidity-pico")
+except AdafruitIO_RequestError:
+    # If no 'humidity' feed exists, create one
+    humidity_feed = io.create_new_feed("humidity-pico")
 
 ## Create background bitmaps and sparklines
 
