@@ -1,4 +1,4 @@
 secrets.py
 *.toml
 *.zip
-#auto_saved_files#
+#*
