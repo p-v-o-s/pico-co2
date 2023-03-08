@@ -33,7 +33,6 @@ displayio.release_displays()
 def reset_on_error(delay, error):
     """Resets the code after a specified delay, when encountering an error."""
     print("Error:\n", str(error))
-    display.print("Error :(")
     print("Resetting microcontroller in %d seconds" % delay)
     time.sleep(delay)
     microcontroller.reset()
@@ -82,7 +81,7 @@ display.show(None)
 print("Connecting to wifi")
 try:
     wifi.radio.connect(os.getenv('WIFI_SSID'), os.getenv('WIFI_PASSWORD'))
-# any errors, reset MCU after 10s
+    # any errors, reset MCU after 10s
 except Exception as e:  # pylint: disable=broad-except
     reset_on_error(10, e)
 print("Wifi: connected")
@@ -98,6 +97,12 @@ rtc.datetime = ntp.datetime
 t = rtc.datetime
 print("Date: %d/%d/%d" % (t.tm_mday, t.tm_mon, t.tm_year))
 print("Time: %d:%02d:%02d" % (t.tm_hour, t.tm_min, t.tm_sec))
+
+# Bayou setup
+base_url = "http://bayou.pvos.org/data/"
+full_url = base_url+os.getenv('BAYOU_PUB_KEY')
+bayou_node = 0
+bayou_key = os.getenv('BAYOU_PRIV_KEY')
 
 # Initialize an Adafruit IO HTTP API object
 print("Connecting to AdafruitIO")
@@ -215,6 +220,15 @@ while True:
             io.send_data(temp_feed["key"], temp)
             io.send_data(humidity_feed["key"], humidity)
             print("Data sent!")
+
+            # Send co2 to bayou feed
+            print("Sending {0} to bayou co2 feed...".format(co2))
+            packet = {"private_key":bayou_key, "co2_ppm":co2,
+                    "node_id":bayou_node}
+            res = requests.post(full_url, data = packet)
+            print(res.text)
+            print("Data sent!")
+
 
         time.sleep(10)
     # any errors, reset MCU
